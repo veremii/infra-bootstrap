@@ -1,0 +1,75 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Backup files
+*.bak
+*.bak.*
+*.backup
+
+# WireGuard configs
+*.conf
+!/etc/wireguard/*.conf.example
+
+# Bundle files
+bundle-*.tar.gz
+*.tar.gz
+*.tar
+*.zip
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# SSH keys
+*.key
+*.pub
+id_*
+authorized_keys
+
+# macOS
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.python-version
+
+# Node.js (if using for any tooling)
+node_modules/
+
+# Terraform (if using for cloud provisioning)
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Ansible (if using for automation)
+*.retry
+
+# Custom environment configs (keep only examples)
+envs/production/*.env
+envs/staging/*.env  
+envs/development/*.env
+envs/clients/*.env
+!envs/production/example.env
+!envs/staging/example.env
+!envs/development/example.env
+
+# Generated files
+/infra-bootstrap/
+/bundle-*/
+
+

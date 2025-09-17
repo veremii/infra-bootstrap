@@ -1,0 +1,126 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+      hosts:
+        description: 'Specific hosts (comma-separated) or "all"'
+        required: false
+        default: 'all'
+
+env:
+  BUNDLE_DIR: /tmp/bundles
+
+jobs:
+  prepare:
+    name: Prepare Deployment Bundles
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up deployment matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.hosts }}" = "all" ]; then
+            # Get all hosts for environment
+            hosts=$(grep -A 100 "^hosts:" envs/hosts.yml | \
+                    grep -E "^\s+[^:]+:" | \
+                    grep -B 3 "env: ${{ github.event.inputs.environment }}" | \
+                    grep -E "^\s+[^:]+:" | \
+                    sed 's/://g' | sed 's/^\s*//' | \
+                    jq -R . | jq -s .)
+          else
+            # Use specified hosts
+            hosts=$(echo "${{ github.event.inputs.hosts }}" | \
+                    tr ',' '\n' | \
+                    jq -R . | jq -s .)
+          fi
+          
+          echo "matrix={\"host\":$hosts}" >> $GITHUB_OUTPUT
+      
+      - name: Create bundles directory
+        run: mkdir -p ${{ env.BUNDLE_DIR }}
+      
+      - name: Upload bundles artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-bundles
+          path: ${{ env.BUNDLE_DIR }}
+          retention-days: 1
+
+  deploy:
+    name: Deploy to ${{ matrix.host }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      max-parallel: 4
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create bundle for ${{ matrix.host }}
+        run: |
+          make bundle-create HOST=${{ matrix.host }} OUTPUT=${{ env.BUNDLE_DIR }}/bundle-${{ matrix.host }}.tar.gz
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+      
+      - name: Add host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ matrix.host }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to ${{ matrix.host }}
+        run: |
+          # Copy bundle
+          scp ${{ env.BUNDLE_DIR }}/bundle-${{ matrix.host }}.tar.gz deploy@${{ matrix.host }}:~/
+          
+          # Deploy
+          ssh deploy@${{ matrix.host }} << 'EOF'
+            set -e
+            tar -xzf bundle-*.tar.gz
+            cd infra-bootstrap
+            ./bootstrap.sh -y install
+            ./bootstrap.sh clean
+          EOF
+      
+      - name: Health check
+        run: |
+          ssh deploy@${{ matrix.host }} "infra-healthcheck" || true
+      
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to ${{ matrix.host }}"
+      
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Failed to deploy to ${{ matrix.host }}"
+
+  summary:
+    name: Deployment Summary
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Initiated by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date)" >> $GITHUB_STEP_SUMMARY

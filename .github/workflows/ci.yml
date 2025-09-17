@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install linters
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck shfmt make
+      - name: Shellcheck
+        run: |
+          shellcheck scripts/*.sh
+      - name: shfmt check
+        run: |
+          shfmt -i 2 -ci -bn -d .
+      - name: Make help (dry-run)
+        run: |
+          make help
+
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create archive
+        run: |
+          zip -r infra-bootstrap.zip Makefile scripts .env.example README.md || true
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: infra-bootstrap
+          path: infra-bootstrap.zip
+
+
+

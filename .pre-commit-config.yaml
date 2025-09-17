@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: [-x]
+        files: \.(sh|bash)$
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.7.0-4
+    hooks:
+      - id: shfmt
+        args: [-i, "2", -ci, -bn]
+        files: \.(sh|bash)$
