@@ -166,7 +166,7 @@ This bundle contains configurations for all hosts in $ENVIRONMENT environment.
 ## Available Configurations
 
 EOF
-    ls -1 "envs/$ENVIRONMENT"/*.env 2>/dev/null | while read -r config; do
+    find "envs/$ENVIRONMENT" -name "*.env" -type f 2>/dev/null | while read -r config; do
       echo "- $(basename "$config")" >> "$BUNDLE_DIR/DEPLOY.md"
     done
   fi
@@ -215,12 +215,12 @@ cd "$OLDPWD"
 
 # Статистика
 SIZE=$(du -h "$OUTPUT" | cut -f1)
-FILES=$(tar -tzf "$OUTPUT" | wc -l)
+FILE_COUNT=$(tar -tzf "$OUTPUT" | wc -l)
 
 echo -e "${GREEN}✓ Bundle created successfully${NC}"
 echo "  File: $OUTPUT"
 echo "  Size: $SIZE"
-echo "  Files: $FILES"
+echo "  Files: $FILE_COUNT"
 
 # Инструкции
 echo ""

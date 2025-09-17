@@ -335,3 +335,28 @@ bundle-list:
 		echo "No envs/hosts.yml found"; \
 		echo "Using single configuration mode"; \
 	fi'
+
+## Lint all shell scripts
+lint:
+	@echo "=== Running shellcheck on all scripts ===" && \
+	failed=0 && \
+	for file in scripts/*.sh bootstrap.sh test-local.sh validate.sh; do \
+		if [ -f "$$file" ]; then \
+			echo -n "Checking $$file... "; \
+			if shellcheck "$$file" > /tmp/shellcheck.log 2>&1; then \
+				echo "✅ OK"; \
+			else \
+				echo "❌ FAILED"; \
+				cat /tmp/shellcheck.log; \
+				failed=1; \
+			fi; \
+		fi; \
+	done; \
+	rm -f /tmp/shellcheck.log; \
+	if [ $$failed -eq 0 ]; then \
+		echo -e "\n✅ All scripts passed shellcheck"; \
+		exit 0; \
+	else \
+		echo -e "\n❌ Some scripts have issues"; \
+		exit 1; \
+	fi

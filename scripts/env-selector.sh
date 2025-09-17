@@ -88,7 +88,8 @@ find_host_config() {
   fi
   
   # Ищем точное совпадение
-  local config=$(parse_yaml "$hosts_file" ".hosts.\"$hostname\".config")
+  local config
+  config=$(parse_yaml "$hosts_file" ".hosts.\"$hostname\".config")
   if [ -n "$config" ]; then
     echo "$config"
     return 0
@@ -122,7 +123,8 @@ show_host_info() {
   echo "Hostname: $hostname"
   
   # Полная информация о хосте
-  local info=$(parse_yaml "$hosts_file" ".hosts.\"$hostname\"")
+  local info
+  info=$(parse_yaml "$hosts_file" ".hosts.\"$hostname\"")
   if [ -z "$info" ]; then
     # Пробуем короткое имя
     local shortname="${hostname%%.*}"
@@ -130,7 +132,7 @@ show_host_info() {
   fi
   
   if [ -n "$info" ]; then
-    echo "$info" | sed 's/^/  /'
+    echo "$info" | while IFS= read -r line; do echo "  $line"; done
   else
     echo -e "${YELLOW}  No specific configuration found${NC}"
     echo "  Will use defaults:"
@@ -146,12 +148,14 @@ list_configs() {
   
   for env_dir in "$envs_dir"/{production,staging,development,clients}; do
     if [ -d "$env_dir" ]; then
-      local env_name=$(basename "$env_dir")
+      local env_name
+      env_name=$(basename "$env_dir")
       echo -e "\n${GREEN}$env_name:${NC}"
       
       for config in "$env_dir"/*.env; do
         if [ -f "$config" ]; then
-          local config_name=$(basename "$config")
+          local config_name
+          config_name=$(basename "$config")
           echo "  - $config_name"
           
           # Показать первые несколько строк с метаданными
@@ -280,7 +284,7 @@ main() {
       if [ -n "$force_env" ]; then
         # Ищем первый подходящий конфиг в указанном окружении
         if [ -d "$ENVS_DIR/$force_env" ]; then
-          config_path="$force_env/$(ls "$ENVS_DIR/$force_env"/*.env 2>/dev/null | head -1 | xargs basename)"
+          config_path="$force_env/$(find "$ENVS_DIR/$force_env" -name "*.env" -type f 2>/dev/null | head -1 | xargs basename)"
           echo -e "${BLUE}Forcing environment: $force_env${NC}"
         else
           echo -e "${RED}✗${NC} Environment not found: $force_env"

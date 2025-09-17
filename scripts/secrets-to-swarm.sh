@@ -21,7 +21,8 @@ HLP
 
 ENV_FILE=""
 PREFIX="app_"
-STACK=""
+# shellcheck disable=SC2034
+STACK=""  # Optional stack name hint (for future use)
 
 while getopts ":f:p:s:h" opt; do
   case "$opt" in

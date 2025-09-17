@@ -99,7 +99,8 @@ check_docker_service() {
   printf "%-30s" "$name"
   
   if docker service ls 2>/dev/null | grep -q "$service"; then
-    local replicas=$(docker service ls --format "table {{.Replicas}}" --filter "name=$service" | tail -n +2)
+    local replicas
+    replicas=$(docker service ls --format "table {{.Replicas}}" --filter "name=$service" | tail -n +2)
     echo -e "${GREEN}✓ RUNNING${NC} ($replicas)"
     CHECKS_PASSED=$((CHECKS_PASSED + 1))
     return 0

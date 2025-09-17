@@ -62,7 +62,7 @@ create_env() {
     echo "1) Use default .env.example"
     echo "2) Select specific environment"
     echo "3) Exit"
-    read -p "Choose [1-3]: " choice
+    read -r -p "Choose [1-3]: " choice
     
     case $choice in
       1)
@@ -73,7 +73,7 @@ create_env() {
         cp .env.example .env
         ;;
       2)
-        read -p "Enter environment name (e.g., production/edge-de1.env): " env_name
+        read -r -p "Enter environment name (e.g., production/edge-de1.env): " env_name
         if ./scripts/env-selector.sh --config "$env_name"; then
           return
         else
@@ -152,7 +152,7 @@ setup_email() {
   if [ "${TRAEFIK_ACME_EMAIL:-}" = "admin@example.com" ]; then
     echo ""
     echo -e "${BLUE}Let's Encrypt email configuration${NC}"
-    read -p "Enter email for SSL certificates (or press Enter to skip): " email
+    read -r -p "Enter email for SSL certificates (or press Enter to skip): " email
     if [ -n "$email" ]; then
       sed -i "s/^TRAEFIK_ACME_EMAIL=.*/TRAEFIK_ACME_EMAIL=$email/" .env
       echo -e "${GREEN}✓${NC} Email set to: $email"
