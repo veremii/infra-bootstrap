@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Load .env if present
 if [ -f ".env" ]; then
-  # shellcheck disable=SC2046
+  # shellcheck disable=SC2046,SC1091
   set -a
   source .env
   set +a
@@ -18,7 +18,9 @@ require_root() {
 
 backup_file() {
   local f="$1"
-  [ -f "$f" ] && cp -a "$f" "${f}.bak.$(date +%s)" || true
+  if [ -f "$f" ]; then
+    cp -a "$f" "${f}.bak.$(date +%s)"
+  fi
 }
 
 ensure_pkg() {

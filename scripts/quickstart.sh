@@ -110,6 +110,7 @@ create_env() {
 
 # Генерация SSH ключей
 generate_ssh_keys() {
+  # shellcheck disable=SC1091
   source .env
 
   # Admin key
@@ -147,6 +148,7 @@ generate_ssh_keys() {
 
 # Настройка email для Let's Encrypt
 setup_email() {
+  # shellcheck disable=SC1091
   source .env
   
   if [ "${TRAEFIK_ACME_EMAIL:-}" = "admin@example.com" ]; then
