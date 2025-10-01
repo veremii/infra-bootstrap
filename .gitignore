@@ -1,6 +1,7 @@
 # Environment files
 .env
 .env.*
+/envs/*/*.env
 !.env.example
 
 # Backup files
@@ -73,3 +74,4 @@ envs/clients/*.env
 /bundle-*/
 
 
+envs/hosts.yml

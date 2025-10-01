@@ -39,27 +39,28 @@ case "$ACTION" in
     ensure_network edge
     tmpdir=$(mktemp -d); trap 'rm -rf "$tmpdir"' EXIT
     # Build optional dashboard labels and middleware
-    DASHBOARD_LABELS=""
+    ALL_LABELS=""
+    
     if [[ -n "$TRAEFIK_DASHBOARD_DOMAIN" ]]; then
-      DASHBOARD_LABELS=$(cat <<LBL
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.traefik.rule=Host(\`$TRAEFIK_DASHBOARD_DOMAIN\`)"
-        - "traefik.http.routers.traefik.entrypoints=websecure"
-        - "traefik.http.routers.traefik.tls.certresolver=le"
-        - "traefik.http.routers.traefik.service=api@internal"
-LBL
-)
+      ALL_LABELS+="        - \"traefik.enable=true\"\n"
+      ALL_LABELS+="        - \"traefik.http.routers.traefik.rule=Host(\`$TRAEFIK_DASHBOARD_DOMAIN\`)\"\n"
+      ALL_LABELS+="        - \"traefik.http.routers.traefik.entrypoints=websecure\"\n"
+      ALL_LABELS+="        - \"traefik.http.routers.traefik.tls.certresolver=le\"\n"
+      ALL_LABELS+="        - \"traefik.http.routers.traefik.service=api@internal\"\n"
+      
+      if [[ -n "$BASIC_AUTH_HTPASSWD" ]]; then
+        # Escape $ for Docker Compose ($$)
+        ESCAPED_AUTH="${BASIC_AUTH_HTPASSWD//\$/\$\$}"
+        ALL_LABELS+="        - \"traefik.http.middlewares.perimeter-auth.basicauth.removeheader=true\"\n"
+        ALL_LABELS+="        - \"traefik.http.middlewares.perimeter-auth.basicauth.users=$ESCAPED_AUTH\"\n"
+        ALL_LABELS+="        - \"traefik.http.routers.traefik.middlewares=perimeter-auth@docker\"\n"
+      fi
     fi
-
-    AUTH_LABELS=""
-    if [[ -n "$BASIC_AUTH_HTPASSWD" ]]; then
-      AUTH_LABELS=$(cat <<ALB
-        - "traefik.http.middlewares.perimeter-auth.basicauth.removeheader=true"
-        - "traefik.http.middlewares.perimeter-auth.basicauth.users=$BASIC_AUTH_HTPASSWD"
-        - "traefik.http.routers.traefik.middlewares=perimeter-auth@docker"
-ALB
-)
+    
+    # Generate labels section if we have any
+    LABELS_SECTION=""
+    if [[ -n "$ALL_LABELS" ]]; then
+      LABELS_SECTION=$(printf "      labels:\n%b" "$ALL_LABELS")
     fi
 
     cat >"$tmpdir/stack.yml" <<YAML
@@ -106,9 +107,7 @@ services:
         constraints: ["${EDGE_LABEL}"]
       restart_policy:
         condition: on-failure
-      labels:
-$(printf "%s" "${DASHBOARD_LABELS}" | sed 's/^/        /')
-$(printf "%s" "${AUTH_LABELS}" | sed 's/^/        /')
+${LABELS_SECTION}
 YAML
     docker stack deploy -c "$tmpdir/stack.yml" "$STACK"
     ;;

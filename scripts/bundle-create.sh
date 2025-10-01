@@ -110,13 +110,13 @@ mkdir -p "$BUNDLE_DIR"
 # Копируем основные файлы
 echo "Adding core files..."
 cp Makefile "$BUNDLE_DIR/"
-cp -r scripts/ "$BUNDLE_DIR/"
+cp -r scripts "$BUNDLE_DIR/"
 [ -f .env.example ] && cp .env.example "$BUNDLE_DIR/"
 
 # Копируем envs если есть
 if [ -d envs ]; then
   echo "Adding environment configurations..."
-  cp -r envs/ "$BUNDLE_DIR/"
+  cp -r envs "$BUNDLE_DIR/"
 fi
 
 # Генерируем .env для конкретного хоста

@@ -3,7 +3,7 @@ SHELL := /bin/bash
 -include .env
 export
 
-.PHONY: help check-env init users ssh ufw docker deploy_dir wg-server wg-client swarm-allow edge-open edge-close status show-ssh harden wg-client-apply swarm-ports service-vars gen-readme secrets-check secrets-export secrets-to-swarm traefik-up traefik-down logs-up logs-down portainer-up portainer-down fail2ban-ssh net-bootstrap healthcheck quickstart env-select env-list bundle-create bundle-list
+.PHONY: help check-env init users ssh ufw ufw-reset-safe ufw-confirm docker deploy_dir wg-server wg-client swarm-allow edge-open edge-close status show-ssh harden wg-client-apply swarm-ports service-vars gen-readme secrets-check secrets-export secrets-to-swarm traefik-up traefik-down logs-up logs-down portainer-up portainer-down fail2ban-ssh net-bootstrap healthcheck quickstart env-select env-list bundle-create bundle-list postgres-install storage-up storage-down monitoring-up monitoring-down
 
 help:
 	@echo "Targets:"
@@ -12,6 +12,8 @@ help:
 	@echo "  sudo make users          - создать пользователей, ключи, sudo"
 	@echo "  sudo make ssh            - перенести порт, запретить root+пароли, рестарт sshd"
 	@echo "  sudo make ufw            - включить UFW, базовые allow (SSH, WG)"
+	@echo "  sudo make ufw-reset-safe - безопасный сброс UFW с автооткатом (2 мин)"
+	@echo "  sudo make ufw-confirm    - подтвердить изменения UFW (отменить откат)"
 	@echo "  sudo make docker         - установить Docker CE, добавить пользователей в группу"
 	@echo "  sudo make deploy_dir     - создать /srv/deploy и выдать deployer"
 	@echo "  sudo make wg-server      - поднять WG-сервер (wg0.conf) на этой ноде"
@@ -28,6 +30,9 @@ help:
 	@echo "  sudo make traefik-up/down - поднять/снести Traefik стек"
 	@echo "  sudo make logs-up/down    - поднять/снести Loki+Promtail+Grafana"
 	@echo "  sudo make portainer-up/down - поднять/снести Portainer CE"
+	@echo "  sudo make postgres-install - установить PostgreSQL вне Swarm (на DB ноде)"
+	@echo "  sudo make storage-up/down - поднять/снести MinIO+Redis стек"
+	@echo "  sudo make monitoring-up/down - поднять/снести Prometheus+Alertmanager стек"
 	@echo "  sudo make fail2ban-ssh ACTION=install|enable|disable|status - управлять fail2ban"
 	@echo "  sudo make net-bootstrap    - создать overlay-сети: edge, app(enc), infra(enc)"
 	@echo "  make status              - показать статусы (без sudo)"
@@ -117,6 +122,18 @@ ufw: check-env
 	yes | ufw enable; ufw status verbose; \
 	'
 
+ufw-reset-safe: check-env
+	@bash -c '\
+	set -e; source scripts/lib.sh; require_root; \
+	bash scripts/ufw-safe-reset.sh; \
+	'
+
+ufw-confirm:
+	@bash -c '\
+	set -e; source scripts/lib.sh; require_root; \
+	bash scripts/ufw-confirm.sh; \
+	'
+
 docker:
 	@bash -c '\
 	set -e; source scripts/lib.sh; require_root; \
@@ -143,15 +160,7 @@ wg-server: check-env
 	mkdir -p /etc/wireguard; umask 077; \
 	if [ ! -f /etc/wireguard/private.key ]; then wg genkey | tee /etc/wireguard/private.key | wg pubkey > /etc/wireguard/public.key; fi; \
 	PRIV=$$(cat /etc/wireguard/private.key); \
-	cat >/etc/wireguard/$(WG_IF).conf <<-EOF
-	[Interface]
-	Address = $(WG_SERVER_IP)/24
-	PrivateKey = $${PRIV}
-	ListenPort = $(WG_PORT)
-	MTU = $(WG_MTU)
-	SaveConfig = true
-	EOF
-	; \
+	printf "[Interface]\nAddress = $(WG_SERVER_IP)/24\nPrivateKey = %s\nListenPort = $(WG_PORT)\nMTU = $(WG_MTU)\nSaveConfig = true\n" "$${PRIV}" >/etc/wireguard/$(WG_IF).conf; \
 	systemctl enable wg-quick@$(WG_IF); systemctl restart wg-quick@$(WG_IF); \
 	wg show; echo "WG-сервер поднят на $(WG_SERVER_IP)/24:$(WG_PORT)"; \
 	install -m 0755 scripts/wg-new-client.sh /usr/local/bin/wg-new-client; \
@@ -335,6 +344,36 @@ bundle-list:
 		echo "No envs/hosts.yml found"; \
 		echo "Using single configuration mode"; \
 	fi'
+
+postgres-install:
+	@bash -c '\
+	set -e; source scripts/lib.sh; require_root; \
+	bash scripts/install-postgres.sh; \
+	'
+
+storage-up:
+	@bash -c '\
+	set -e; source scripts/lib.sh; require_root; \
+	bash scripts/stack-storage.sh up; \
+	'
+
+storage-down:
+	@bash -c '\
+	set -e; source scripts/lib.sh; require_root; \
+	bash scripts/stack-storage.sh down; \
+	'
+
+monitoring-up:
+	@bash -c '\
+	set -e; source scripts/lib.sh; require_root; \
+	bash scripts/stack-monitoring.sh up; \
+	'
+
+monitoring-down:
+	@bash -c '\
+	set -e; source scripts/lib.sh; require_root; \
+	bash scripts/stack-monitoring.sh down; \
+	'
 
 ## Lint all shell scripts
 lint:
