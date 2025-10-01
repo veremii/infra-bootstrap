@@ -73,5 +73,6 @@ envs/clients/*.env
 /infra-bootstrap/
 /bundle-*/
 
-
-envs/hosts.yml
+# Specific environment configs with real credentials (keep only examples)
+envs/routerra_stg/*.env
+!envs/routerra_stg/example.env
